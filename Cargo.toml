@@ -1,0 +1,50 @@
+[package]
+name = "app-squads"
+version = "0.1.0"
+authors = ["Squads"]
+edition = "2021"
+
+[dependencies]
+ledger_device_sdk = { version = "1.35.0", features = ["io_new"] }
+arrayvec = { version = "0.7", default-features = false }
+bs58 = { version = "0.5", default-features = false }
+numtoa = "0.2.4"
+zeroize = { version = "1", default-features = false }
+
+[build-dependencies]
+image = "0.25.7"
+
+[features]
+default = ["ledger_device_sdk/nano_nbgl"]
+debug = ["ledger_device_sdk/debug"]
+
+[package.metadata.ledger]
+curve = ["ed25519"]
+flags = "0"
+path = ["44'/501'"]
+name = "Squads"
+
+[package.metadata.ledger.nanox]
+icon = "icons/squads_14x14.gif"
+
+[package.metadata.ledger.nanosplus]
+icon = "icons/squads_14x14.gif"
+
+[package.metadata.ledger.stax]
+icon = "icons/squads_32x32.gif"
+
+[package.metadata.ledger.flex]
+icon = "icons/squads_40x40.gif"
+
+[package.metadata.ledger.apex_p]
+icon = "icons/squads_32x32.png"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("apex_p", "stax", "flex", "nanos", "nanox", "nanosplus"))'] }
+
+[profile.release]
+opt-level = 'z'
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,17 @@
+target
+app.json
+app_nanos.json
+app_nanosplus.json
+app_nanox.json
+app_stax.json
+app_flex.json
+glyphs/home_nano_nbgl.png
+snapshots-tmp/
+*.pyc[cod]
+*.egg
+__pycache__/
+*.egg-info/
+.eggs/
+.python-version
+ledger/
+build/
