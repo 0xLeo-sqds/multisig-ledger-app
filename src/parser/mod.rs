@@ -1,3 +1,4 @@
+pub mod config_tx;
 pub mod inner;
 pub mod solana_message;
 pub mod squads;

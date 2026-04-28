@@ -24,6 +24,10 @@ pub const DISC_VAULT_TX_CREATE: [u8; 8] = [0x30, 0xfa, 0x4e, 0xa8, 0xd0, 0xe2, 0
 pub const DISC_VAULT_TX_EXECUTE: [u8; 8] = [0xc2, 0x08, 0xa1, 0x57, 0x99, 0xa4, 0x19, 0xab];
 pub const DISC_CONFIG_TX_CREATE: [u8; 8] = [0x9b, 0xec, 0x57, 0xe4, 0x89, 0x4b, 0x51, 0x27];
 pub const DISC_CONFIG_TX_EXECUTE: [u8; 8] = [0x72, 0x92, 0xf4, 0xbd, 0xfc, 0x8c, 0x24, 0x28];
+pub const DISC_MULTISIG_CREATE_V2: [u8; 8] = [0x32, 0xdd, 0xc7, 0x5d, 0x28, 0xf5, 0x8b, 0xe9];
+// Account close discriminators (deferred to blind signing in v1)
+pub const DISC_VAULT_TX_ACCOUNTS_CLOSE: [u8; 8] = [0xc4, 0x47, 0xbb, 0xb0, 0x02, 0x23, 0xaa, 0xa5];
+pub const DISC_CONFIG_TX_ACCOUNTS_CLOSE: [u8; 8] = [0x50, 0xcb, 0x54, 0x35, 0x97, 0x70, 0xbb, 0xba];
 
 /// Identified Squads instruction type.
 #[derive(Debug, Clone, Copy)]
@@ -37,6 +41,9 @@ pub enum SquadsInstruction {
     VaultTransactionExecute,
     ConfigTransactionCreate,
     ConfigTransactionExecute,
+    MultisigCreateV2,
+    VaultTxAccountsClose,
+    ConfigTxAccountsClose,
     Unknown,
 }
 
@@ -56,6 +63,9 @@ pub fn identify_instruction(data: &[u8]) -> SquadsInstruction {
         DISC_VAULT_TX_EXECUTE => SquadsInstruction::VaultTransactionExecute,
         DISC_CONFIG_TX_CREATE => SquadsInstruction::ConfigTransactionCreate,
         DISC_CONFIG_TX_EXECUTE => SquadsInstruction::ConfigTransactionExecute,
+        DISC_MULTISIG_CREATE_V2 => SquadsInstruction::MultisigCreateV2,
+        DISC_VAULT_TX_ACCOUNTS_CLOSE => SquadsInstruction::VaultTxAccountsClose,
+        DISC_CONFIG_TX_ACCOUNTS_CLOSE => SquadsInstruction::ConfigTxAccountsClose,
         _ => SquadsInstruction::Unknown,
     }
 }
@@ -117,13 +127,31 @@ pub fn review_transaction(
             }
             SquadsInstruction::ConfigTransactionCreate => {
                 let multisig = msg.instruction_account(ix, 0);
-                return display::review::review_config_tx_create(comm, multisig, ix_data);
+                return display::config_review::review_config_tx(comm, multisig, ix_data);
             }
             SquadsInstruction::ConfigTransactionExecute => {
                 let multisig = msg.instruction_account(ix, 0);
                 return display::review::review_proposal_vote(
                     comm,
                     "Execute Config Change",
+                    multisig,
+                );
+            }
+            SquadsInstruction::MultisigCreateV2 => {
+                // Multisig creation — display as a simple action
+                return display::review::review_proposal_vote(
+                    comm,
+                    "Create Multisig",
+                    None, // no existing multisig to reference
+                );
+            }
+            SquadsInstruction::VaultTxAccountsClose
+            | SquadsInstruction::ConfigTxAccountsClose => {
+                // Account close (rent reclaim) — show as simple action
+                let multisig = msg.instruction_account(ix, 0);
+                return display::review::review_proposal_vote(
+                    comm,
+                    "Close Transaction Accounts",
                     multisig,
                 );
             }
