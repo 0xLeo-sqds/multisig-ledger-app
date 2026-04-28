@@ -1,0 +1,27 @@
+{
+  "name": "@aspect-finance/ledger-squads",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for communicating with the Squads Ledger clear signing app",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@ledgerhq/hw-transport": "^6.31.0"
+  },
+  "devDependencies": {
+    "@ledgerhq/hw-transport-node-speculos-http": "^6.29.0",
+    "@ledgerhq/hw-transport-webhid": "^6.29.0",
+    "@types/jest": "^29.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.0.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aspect-finance/app-squads"
+  }
+}
