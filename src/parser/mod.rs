@@ -1,6 +1,7 @@
 pub mod inner;
 pub mod solana_message;
 pub mod squads;
+pub mod vault_tx;
 
 /// Zero-copy reader over a byte buffer. No allocation.
 /// Ported from msig-cli SafeReader, adapted for no_std.

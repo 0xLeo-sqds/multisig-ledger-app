@@ -1,5 +1,5 @@
-//! SPL Token program instruction decoder.
-//! Phase 2 will add full decoding with amount/address extraction.
+//! SPL Token program instruction decoder for clear signing display.
+//! Extracts amounts from Transfer, TransferChecked, and other instructions.
 
 /// Describe an SPL Token instruction from its data bytes.
 pub fn describe(data: &[u8]) -> &'static str {
@@ -28,4 +28,28 @@ pub fn describe(data: &[u8]) -> &'static str {
         18 => "Initialize Account 3",
         _ => "Token (unknown)",
     }
+}
+
+/// Extract the amount from a Token Transfer instruction (type 3).
+/// Layout: [disc(1)] [amount(u64)]
+pub fn extract_transfer_amount(data: &[u8]) -> Option<u64> {
+    if data.len() < 9 || data[0] != 3 {
+        return None;
+    }
+    Some(u64::from_le_bytes([
+        data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8],
+    ]))
+}
+
+/// Extract amount and decimals from a TransferChecked instruction (type 12).
+/// Layout: [disc(1)] [amount(u64)] [decimals(u8)]
+pub fn extract_transfer_checked(data: &[u8]) -> Option<(u64, u8)> {
+    if data.len() < 10 || data[0] != 12 {
+        return None;
+    }
+    let amount = u64::from_le_bytes([
+        data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8],
+    ]);
+    let decimals = data[9];
+    Some((amount, decimals))
 }

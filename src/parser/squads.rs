@@ -105,7 +105,7 @@ pub fn review_transaction(
             }
             SquadsInstruction::VaultTransactionCreate => {
                 let multisig = msg.instruction_account(ix, 0);
-                return display::review::review_vault_tx_create(comm, multisig, ix_data);
+                return display::streaming_review::review_vault_tx(comm, multisig, ix_data);
             }
             SquadsInstruction::VaultTransactionExecute => {
                 let multisig = msg.instruction_account(ix, 0);

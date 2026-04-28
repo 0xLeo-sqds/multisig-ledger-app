@@ -42,7 +42,40 @@ pub const MEMO_PROGRAM: [u8; 32] = [
     0x44, 0x8d,
 ];
 
-/// Describe an inner instruction for display.
+/// Describe an inner instruction from a vault transaction's inner message.
+/// Uses the vault_tx module's zero-copy metadata.
+pub fn describe_inner_instruction_from_vault(
+    raw: &[u8],
+    msg: &super::vault_tx::InnerMessageMeta,
+    ix: &super::vault_tx::InnerInstructionMeta,
+) -> ArrayString<64> {
+    let mut desc = ArrayString::<64>::new();
+    let program_id = match msg.program_id(raw, ix) {
+        Some(id) => id,
+        None => {
+            let _ = desc.try_push_str("Unknown Program");
+            return desc;
+        }
+    };
+    let ix_data = msg.instruction_data(raw, ix);
+
+    if *program_id == SYSTEM_PROGRAM {
+        let _ = desc.try_push_str(system::describe(ix_data));
+    } else if *program_id == SPL_TOKEN_PROGRAM {
+        let _ = desc.try_push_str(spl_token::describe(ix_data));
+    } else if *program_id == ATA_PROGRAM {
+        let _ = desc.try_push_str("Create Token Account");
+    } else if *program_id == COMPUTE_BUDGET_PROGRAM {
+        let _ = desc.try_push_str(describe_compute_budget(ix_data));
+    } else if *program_id == MEMO_PROGRAM {
+        let _ = desc.try_push_str("Memo");
+    } else {
+        let _ = desc.try_push_str("Unknown Program");
+    }
+    desc
+}
+
+/// Describe an inner instruction for display (from outer Solana message).
 /// Returns a human-readable summary like "SOL Transfer" or "Unknown Program".
 pub fn describe_inner_instruction(msg: &ParsedMessage<'_>, ix: &InstructionMeta) -> ArrayString<64> {
     let mut desc = ArrayString::<64>::new();
