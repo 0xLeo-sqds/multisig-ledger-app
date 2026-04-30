@@ -101,7 +101,7 @@ pub fn review_vault_tx(
         let ix_data_slice = msg.instruction_data(ix_data, inner_ix);
         let program_id = msg.program_id(ix_data, inner_ix);
 
-        // Build label: "IX 1/3: SOL Transfer"
+        // Build label: "IX 1/3" — the instruction type goes in the detail
         let desc = inner::describe_inner_instruction_from_vault(ix_data, msg, inner_ix);
         let _ = write!(
             &mut ix_labels[i],
@@ -110,13 +110,11 @@ pub fn review_vault_tx(
             msg.num_instructions
         );
 
-        // Build detail based on instruction type
+        // Build detail: "50 SOL → DdDd...DdDd" or "Jupiter Swap" etc.
         if let Some(pid) = program_id {
             if *pid == inner::SYSTEM_PROGRAM {
-                // Try to extract SOL transfer amount + destination
                 if let Some(lamports) = system::extract_transfer_amount(ix_data_slice) {
                     let sol = format_sol(lamports);
-                    // Destination is account index 1 in the instruction
                     if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 1) {
                         let mut dest_buf = [0u8; 45];
                         if let Ok(len) = format_base58(dest, &mut dest_buf) {
@@ -131,20 +129,35 @@ pub fn review_vault_tx(
                 } else {
                     let _ = ix_details[i].try_push_str(desc.as_str());
                 }
-            } else if *pid == inner::SPL_TOKEN_PROGRAM {
-                // Try to extract token transfer amount
-                if let Some(amount) = spl_token::extract_transfer_amount(ix_data_slice) {
+            } else if *pid == inner::SPL_TOKEN_PROGRAM || *pid == inner::TOKEN_2022_PROGRAM {
+                // TransferChecked (type 12) includes decimals
+                if let Some((amount, decimals)) = spl_token::extract_transfer_checked(ix_data_slice) {
+                    let formatted = crate::display::amount::format_amount(amount, decimals);
+                    // Destination is account index 2 for TransferChecked
+                    if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 2) {
+                        let mut dest_buf = [0u8; 45];
+                        if let Ok(len) = format_base58(dest, &mut dest_buf) {
+                            let dest_str = core::str::from_utf8(&dest_buf[..len]).unwrap_or("???");
+                            let _ = write!(&mut ix_details[i], "{} → {}", formatted.as_str(), dest_str);
+                        } else {
+                            let _ = ix_details[i].try_push_str(formatted.as_str());
+                        }
+                    } else {
+                        let _ = ix_details[i].try_push_str(formatted.as_str());
+                    }
+                } else if let Some(raw_amount) = spl_token::extract_transfer_amount(ix_data_slice) {
+                    // Plain Transfer (type 3) — no decimals in instruction, show raw
                     // Destination is account index 1
                     if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 1) {
                         let mut dest_buf = [0u8; 45];
                         if let Ok(len) = format_base58(dest, &mut dest_buf) {
                             let dest_str = core::str::from_utf8(&dest_buf[..len]).unwrap_or("???");
-                            let _ = write!(&mut ix_details[i], "{} tokens → {}", amount, dest_str);
+                            let _ = write!(&mut ix_details[i], "{} raw → {}", raw_amount, dest_str);
                         } else {
-                            let _ = write!(&mut ix_details[i], "{} tokens", amount);
+                            let _ = write!(&mut ix_details[i], "{} raw tokens", raw_amount);
                         }
                     } else {
-                        let _ = write!(&mut ix_details[i], "{} tokens", amount);
+                        let _ = write!(&mut ix_details[i], "{} raw tokens", raw_amount);
                     }
                 } else if let Some((amount, decimals)) =
                     spl_token::extract_transfer_checked(ix_data_slice)
