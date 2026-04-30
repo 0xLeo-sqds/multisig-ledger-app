@@ -14,8 +14,6 @@ pub const SOL_DECIMALS: u8 = 9;
 /// Hardcoded token registry for clear signing display.
 /// Returns None for unknown mints.
 pub fn lookup_token(_mint: &[u8; 32]) -> Option<TokenInfo> {
-    // TODO: Add known token mints (USDC, USDT, wSOL, mSOL, jitoSOL, BONK)
-    // For now, return None — amounts display as raw with mint address
     None
 }
 
@@ -27,9 +25,7 @@ pub fn format_amount(raw: u64, decimals: u8) -> ArrayString<32> {
     let mut buf = ArrayString::<32>::new();
 
     if decimals == 0 {
-        let mut num_buf = [0u8; 20];
-        let s = numtoa::NumToA::numtoa(raw, 10, &mut num_buf);
-        let _ = buf.try_push_str(s);
+        let _ = write!(&mut buf, "{}", raw);
         return buf;
     }
 
@@ -37,13 +33,7 @@ pub fn format_amount(raw: u64, decimals: u8) -> ArrayString<32> {
     let integer_part = raw / divisor;
     let frac_part = raw % divisor;
 
-    // Integer part
-    let mut num_buf = [0u8; 20];
-    let int_str = numtoa::NumToA::numtoa(integer_part, 10, &mut num_buf);
-    let _ = buf.try_push_str(int_str);
-
-    // Decimal point + fractional part with leading zeros
-    let _ = write!(&mut buf, ".{:0>width$}", frac_part, width = decimals as usize);
+    let _ = write!(&mut buf, "{}.{:0>width$}", integer_part, frac_part, width = decimals as usize);
 
     buf
 }

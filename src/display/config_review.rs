@@ -133,7 +133,7 @@ fn review_config_action(
             Ok(approved)
         }
         ConfigActionParsed::AddSpendingLimit {
-            vault_index,
+            vault_index: _,
             mint,
             amount,
             period,
@@ -188,10 +188,10 @@ fn review_config_action(
             Ok(approved)
         }
         ConfigActionParsed::SetRentCollector { new_rent_collector } => {
+            let mut collector_buf = [0u8; 45];
             let collector_display = if let Some(key) = new_rent_collector {
-                let mut buf = [0u8; 45];
-                let len = format_base58(key, &mut buf).map_err(|_| ParseError::InvalidStructure)?;
-                core::str::from_utf8(&buf[..len]).unwrap_or("???")
+                let len = format_base58(key, &mut collector_buf).map_err(|_| ParseError::InvalidStructure)?;
+                core::str::from_utf8(&collector_buf[..len]).unwrap_or("???")
             } else {
                 "None (disabled)"
             };
@@ -218,7 +218,6 @@ fn review_config_action(
             let approved = NbglReview::new()
                 .titles("Review\nConfig Change", "", "Sign transaction?")
                 .tx_type(TransactionType::Transaction)
-                .blind()
                 .show(comm, &fields);
             Ok(approved)
         }

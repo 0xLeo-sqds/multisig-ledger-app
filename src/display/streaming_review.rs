@@ -9,7 +9,6 @@ use crate::display::amount::format_sol;
 use crate::parser::inner;
 use crate::parser::inner::spl_token;
 use crate::parser::inner::system;
-use crate::parser::vault_tx::VaultTxMeta;
 use crate::parser::ParseError;
 use crate::settings::Settings;
 use arrayvec::ArrayString;

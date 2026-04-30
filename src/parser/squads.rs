@@ -1,8 +1,7 @@
 use super::solana_message::ParsedMessage;
-use super::{ParseError, Reader};
+use super::ParseError;
 use crate::display;
 use crate::settings::Settings;
-use crate::AppSW;
 use ledger_device_sdk::io::Comm;
 
 /// Squads v4 mainnet program ID: SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf

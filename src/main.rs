@@ -114,7 +114,7 @@ impl TryFrom<ApduHeader> for Instruction {
 fn show_status_and_home_if_needed(
     comm: &mut Comm,
     ins: &Instruction,
-    tx_ctx: &TxContext,
+    tx_ctx: &mut TxContext,
     status: &AppSW,
 ) {
     let show_status = match (ins, status) {
@@ -163,7 +163,7 @@ extern "C" fn sample_main(_arg0: u32) {
                 sw
             }
         };
-        show_status_and_home_if_needed(comm, &ins, &tx_ctx, &status);
+        show_status_and_home_if_needed(comm, &ins, &mut tx_ctx, &status);
     }
 }
 

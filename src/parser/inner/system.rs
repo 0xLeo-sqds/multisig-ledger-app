@@ -1,15 +1,6 @@
 //! System program instruction decoder for clear signing display.
 //! Extracts amounts and destination addresses from known instruction types.
 
-use crate::display::address::format_base58;
-use crate::display::amount::format_sol;
-use arrayvec::ArrayString;
-use core::fmt::Write;
-use ledger_device_sdk::nbgl::Field;
-
-/// Maximum number of display fields for a system instruction.
-pub const MAX_FIELDS: usize = 4;
-
 /// Describe a System program instruction from its data bytes.
 pub fn describe(data: &[u8]) -> &'static str {
     if data.len() < 4 {

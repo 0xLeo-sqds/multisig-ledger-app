@@ -66,7 +66,6 @@ pub fn review_spending_limit_use(
     ix_data: &[u8],
 ) -> Result<bool, ParseError> {
     use crate::display::amount::format_amount;
-    use crate::parser::Reader;
     use arrayvec::ArrayString;
     use core::fmt::Write;
 
@@ -138,7 +137,6 @@ pub fn review_blind(comm: &mut Comm) -> Result<bool, ParseError> {
     let approved = NbglReview::new()
         .titles("Blind Signing", "", "Sign transaction?")
         .tx_type(TransactionType::Transaction)
-        .blind()
         .show(comm, &fields);
 
     Ok(approved)

@@ -115,41 +115,57 @@ pub fn handler_sign_tx<'a>(
     }
 
     // All chunks received — parse, display, and sign
-    let tx_bytes = &ctx.buf[..ctx.buf_len];
+    let buf_len = ctx.buf_len;
 
     // Check for versioned (v0) message — reject with clear error
-    if !tx_bytes.is_empty() && tx_bytes[0] & 0x80 != 0 {
+    if buf_len > 0 && ctx.buf[0] & 0x80 != 0 {
         ctx.reset();
         return Err(AppSW::InvalidMessage);
     }
 
-    // Parse the Solana legacy message
-    let parsed = solana_message::parse_legacy_message(tx_bytes).map_err(|_| {
-        ctx.reset();
-        AppSW::TxParsingFail
-    })?;
+    // Parse the Solana legacy message (borrow buf for the duration of parsing + display)
+    let parse_result = solana_message::parse_legacy_message(&ctx.buf[..buf_len]);
+    let parsed = match parse_result {
+        Ok(p) => p,
+        Err(_) => {
+            ctx.reset();
+            return Err(AppSW::TxParsingFail);
+        }
+    };
 
     // Identify Squads instructions and display for user review
     let comm = command.into_comm();
-    let approved = squads::review_transaction(comm, &parsed, tx_bytes).map_err(|_| {
-        ctx.reset();
-        AppSW::TxDisplayFail
-    })?;
+    let review_result = squads::review_transaction(comm, &parsed, &ctx.buf[..buf_len]);
+    let approved = match review_result {
+        Ok(a) => a,
+        Err(_) => {
+            ctx.reset();
+            return Err(AppSW::TxDisplayFail);
+        }
+    };
 
     if !approved {
         ctx.reset();
         return Err(AppSW::Deny);
     }
 
+    // Extract path before signing (avoids borrow conflict)
+    let path = match ctx.path.as_ref() {
+        Some(p) => p,
+        None => {
+            ctx.reset();
+            return Err(AppSW::TxSignFail);
+        }
+    };
+
     // Sign the raw message bytes
-    let path = ctx.path.as_ref().ok_or_else(|| {
-        ctx.reset();
-        AppSW::TxSignFail
-    })?;
-    let signature = sign_message(path, tx_bytes).map_err(|e| {
-        ctx.reset();
-        e
-    })?;
+    let signature = match sign_message(path, &ctx.buf[..buf_len]) {
+        Ok(s) => s,
+        Err(e) => {
+            ctx.reset();
+            return Err(e);
+        }
+    };
 
     ctx.finished = true;
     let mut response = comm.begin_response();
