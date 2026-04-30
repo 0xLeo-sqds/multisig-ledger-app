@@ -1,0 +1,17 @@
+#[test]
+fn test_base58_system_program() {
+    let pubkey = [0u8; 32];
+    let addr = bs58::encode(&pubkey).into_string();
+    assert_eq!(addr, "11111111111111111111111111111111");
+}
+
+#[test]
+fn test_base58_squads_program_id() {
+    let squads_id: [u8; 32] = [
+        0x06, 0x81, 0xc4, 0xce, 0x47, 0xe2, 0x23, 0x68, 0xb8, 0xb1, 0x55, 0x5e, 0xc8, 0x87, 0xaf,
+        0x09, 0x2e, 0xfc, 0x7e, 0xfb, 0xb6, 0x6c, 0xa3, 0xf5, 0x2f, 0xbf, 0x68, 0xd4, 0xac, 0x9c,
+        0xb7, 0xa8,
+    ];
+    let addr = bs58::encode(&squads_id).into_string();
+    assert_eq!(addr, "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf");
+}
