@@ -25,7 +25,8 @@ pub const DISC_VAULT_TX_EXECUTE: [u8; 8] = [0xc2, 0x08, 0xa1, 0x57, 0x99, 0xa4, 
 pub const DISC_CONFIG_TX_CREATE: [u8; 8] = [0x9b, 0xec, 0x57, 0xe4, 0x89, 0x4b, 0x51, 0x27];
 pub const DISC_CONFIG_TX_EXECUTE: [u8; 8] = [0x72, 0x92, 0xf4, 0xbd, 0xfc, 0x8c, 0x24, 0x28];
 pub const DISC_MULTISIG_CREATE_V2: [u8; 8] = [0x32, 0xdd, 0xc7, 0x5d, 0x28, 0xf5, 0x8b, 0xe9];
-// Account close discriminators (deferred to blind signing in v1)
+pub const DISC_SPENDING_LIMIT_USE: [u8; 8] = [0x10, 0x39, 0x82, 0x7f, 0xc1, 0x14, 0x9b, 0x86];
+// Account close discriminators
 pub const DISC_VAULT_TX_ACCOUNTS_CLOSE: [u8; 8] = [0xc4, 0x47, 0xbb, 0xb0, 0x02, 0x23, 0xaa, 0xa5];
 pub const DISC_CONFIG_TX_ACCOUNTS_CLOSE: [u8; 8] = [0x50, 0xcb, 0x54, 0x35, 0x97, 0x70, 0xbb, 0xba];
 
@@ -41,6 +42,7 @@ pub enum SquadsInstruction {
     VaultTransactionExecute,
     ConfigTransactionCreate,
     ConfigTransactionExecute,
+    SpendingLimitUse,
     MultisigCreateV2,
     VaultTxAccountsClose,
     ConfigTxAccountsClose,
@@ -63,6 +65,7 @@ pub fn identify_instruction(data: &[u8]) -> SquadsInstruction {
         DISC_VAULT_TX_EXECUTE => SquadsInstruction::VaultTransactionExecute,
         DISC_CONFIG_TX_CREATE => SquadsInstruction::ConfigTransactionCreate,
         DISC_CONFIG_TX_EXECUTE => SquadsInstruction::ConfigTransactionExecute,
+        DISC_SPENDING_LIMIT_USE => SquadsInstruction::SpendingLimitUse,
         DISC_MULTISIG_CREATE_V2 => SquadsInstruction::MultisigCreateV2,
         DISC_VAULT_TX_ACCOUNTS_CLOSE => SquadsInstruction::VaultTxAccountsClose,
         DISC_CONFIG_TX_ACCOUNTS_CLOSE => SquadsInstruction::ConfigTxAccountsClose,
@@ -135,6 +138,20 @@ pub fn review_transaction(
                     comm,
                     "Execute Config Change",
                     multisig,
+                );
+            }
+            SquadsInstruction::SpendingLimitUse => {
+                // spending_limit_use moves funds directly — high security.
+                // Instruction data after discriminator:
+                //   amount(u64) + decimals(u8) + memo_option(1 + len + bytes)
+                // Account layout: [multisig, spending_limit, vault, mint(?), destination, ...]
+                let multisig = msg.instruction_account(ix, 0);
+                let destination = msg.instruction_account(ix, 4);
+                return display::review::review_spending_limit_use(
+                    comm,
+                    multisig,
+                    destination,
+                    ix_data,
                 );
             }
             SquadsInstruction::MultisigCreateV2 => {
