@@ -17,8 +17,8 @@ use ledger_device_sdk::io::Comm;
 use ledger_device_sdk::nbgl::{Field, NbglReview, TransactionType};
 
 /// Maximum fields we can display in a single NbglReview call.
-/// Header (3) + max inner ix fields (2 per ix * 8 ix max) + warning (1) = 20
-const MAX_REVIEW_FIELDS: usize = 20;
+/// Header (4) + max inner ix fields (3 per ix * 6 ix max) + warning (1) = 23
+const MAX_REVIEW_FIELDS: usize = 24;
 
 /// Review a vault_transaction_create with per-instruction display.
 ///
@@ -88,169 +88,79 @@ pub fn review_vault_tx(
         vault_meta.vault_index, msg.num_instructions
     );
 
-    // Per-instruction label and detail buffers (max 8 inner instructions displayed)
-    const MAX_DISPLAY_IX: usize = 8;
+    // Per-instruction buffers: each IX gets up to 3 fields (type, amount, destination)
+    // Max 6 inner instructions displayed (6 * 3 = 18 fields + 4 header + 1 warning = 23)
+    const MAX_DISPLAY_IX: usize = 6;
     let display_count = msg.num_instructions.min(MAX_DISPLAY_IX);
 
-    // We need these buffers to outlive the Field references
+    // Buffers that must outlive the Field references
     let mut ix_labels: [ArrayString<32>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
-    let mut ix_details: [ArrayString<64>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
+    let mut ix_amounts: [ArrayString<32>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
+    let mut ix_dests: [ArrayString<48>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
+    // Track which fields are populated per instruction
+    let mut ix_has_amount: [bool; MAX_DISPLAY_IX] = [false; MAX_DISPLAY_IX];
+    let mut ix_has_dest: [bool; MAX_DISPLAY_IX] = [false; MAX_DISPLAY_IX];
 
     for i in 0..display_count {
         let inner_ix = &msg.instructions[i];
         let ix_data_slice = msg.instruction_data(ix_data, inner_ix);
         let program_id = msg.program_id(ix_data, inner_ix);
 
-        // Build label: "IX 1/3" — the instruction type goes in the detail
+        // Build label: "IX 1/3: SOL Transfer"
         let desc = inner::describe_inner_instruction_from_vault(ix_data, msg, inner_ix);
         let _ = write!(
             &mut ix_labels[i],
-            "IX {}/{}",
+            "IX {}/{}: {}",
             i + 1,
-            msg.num_instructions
+            msg.num_instructions,
+            desc.as_str()
         );
 
-        // Build detail: "50 SOL → DdDd...DdDd" or "Jupiter Swap" etc.
+        // Extract amount and destination into separate buffers
         if let Some(pid) = program_id {
             if *pid == inner::SYSTEM_PROGRAM {
                 if let Some(lamports) = system::extract_transfer_amount(ix_data_slice) {
                     let sol = format_sol(lamports);
-                    if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 1) {
-                        let mut dest_buf = [0u8; 45];
-                        if let Ok(len) = format_base58(dest, &mut dest_buf) {
-                            let dest_str = core::str::from_utf8(&dest_buf[..len]).unwrap_or("???");
-                            let _ = write!(&mut ix_details[i], "{} → {}", sol.as_str(), dest_str);
-                        } else {
-                            let _ = write!(&mut ix_details[i], "{}", sol.as_str());
-                        }
-                    } else {
-                        let _ = write!(&mut ix_details[i], "{}", sol.as_str());
-                    }
-                } else {
-                    let _ = ix_details[i].try_push_str(desc.as_str());
-                }
-            } else if *pid == inner::SPL_TOKEN_PROGRAM || *pid == inner::TOKEN_2022_PROGRAM {
-                // TransferChecked (type 12) includes decimals
-                if let Some((amount, decimals)) = spl_token::extract_transfer_checked(ix_data_slice) {
-                    let formatted = crate::display::amount::format_amount(amount, decimals);
-                    // Destination is account index 2 for TransferChecked
-                    if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 2) {
-                        let mut dest_buf = [0u8; 45];
-                        if let Ok(len) = format_base58(dest, &mut dest_buf) {
-                            let dest_str = core::str::from_utf8(&dest_buf[..len]).unwrap_or("???");
-                            let _ = write!(&mut ix_details[i], "{} → {}", formatted.as_str(), dest_str);
-                        } else {
-                            let _ = ix_details[i].try_push_str(formatted.as_str());
-                        }
-                    } else {
-                        let _ = ix_details[i].try_push_str(formatted.as_str());
-                    }
-                } else if let Some(raw_amount) = spl_token::extract_transfer_amount(ix_data_slice) {
-                    // Plain Transfer (type 3) — no decimals in instruction, show raw
+                    let _ = ix_amounts[i].try_push_str(sol.as_str());
+                    ix_has_amount[i] = true;
                     // Destination is account index 1
                     if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 1) {
                         let mut dest_buf = [0u8; 45];
                         if let Ok(len) = format_base58(dest, &mut dest_buf) {
                             let dest_str = core::str::from_utf8(&dest_buf[..len]).unwrap_or("???");
-                            let _ = write!(&mut ix_details[i], "{} raw → {}", raw_amount, dest_str);
-                        } else {
-                            let _ = write!(&mut ix_details[i], "{} raw tokens", raw_amount);
+                            let _ = ix_dests[i].try_push_str(dest_str);
+                            ix_has_dest[i] = true;
                         }
-                    } else {
-                        let _ = write!(&mut ix_details[i], "{} raw tokens", raw_amount);
                     }
-                } else if let Some((amount, decimals)) =
-                    spl_token::extract_transfer_checked(ix_data_slice)
-                {
+                }
+            } else if *pid == inner::SPL_TOKEN_PROGRAM || *pid == inner::TOKEN_2022_PROGRAM {
+                if let Some((amount, decimals)) = spl_token::extract_transfer_checked(ix_data_slice) {
                     let formatted = crate::display::amount::format_amount(amount, decimals);
+                    let _ = ix_amounts[i].try_push_str(formatted.as_str());
+                    ix_has_amount[i] = true;
                     if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 2) {
                         let mut dest_buf = [0u8; 45];
                         if let Ok(len) = format_base58(dest, &mut dest_buf) {
                             let dest_str = core::str::from_utf8(&dest_buf[..len]).unwrap_or("???");
-                            let _ = write!(
-                                &mut ix_details[i],
-                                "{} → {}",
-                                formatted.as_str(),
-                                dest_str
-                            );
-                        } else {
-                            let _ = ix_details[i].try_push_str(formatted.as_str());
+                            let _ = ix_dests[i].try_push_str(dest_str);
+                            ix_has_dest[i] = true;
                         }
-                    } else {
-                        let _ = ix_details[i].try_push_str(formatted.as_str());
                     }
-                } else {
-                    let _ = ix_details[i].try_push_str(desc.as_str());
-                }
-            } else if *pid == inner::TOKEN_2022_PROGRAM {
-                // Token-2022 shares layout with SPL Token
-                if let Some(amount) = spl_token::extract_transfer_amount(ix_data_slice) {
+                } else if let Some(raw_amount) = spl_token::extract_transfer_amount(ix_data_slice) {
+                    let _ = write!(&mut ix_amounts[i], "{} tokens", raw_amount);
+                    ix_has_amount[i] = true;
                     if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 1) {
                         let mut dest_buf = [0u8; 45];
                         if let Ok(len) = format_base58(dest, &mut dest_buf) {
                             let dest_str = core::str::from_utf8(&dest_buf[..len]).unwrap_or("???");
-                            let _ = write!(&mut ix_details[i], "{} tokens → {}", amount, dest_str);
-                        } else {
-                            let _ = write!(&mut ix_details[i], "{} tokens", amount);
+                            let _ = ix_dests[i].try_push_str(dest_str);
+                            ix_has_dest[i] = true;
                         }
-                    } else {
-                        let _ = write!(&mut ix_details[i], "{} tokens", amount);
-                    }
-                } else {
-                    let _ = ix_details[i].try_push_str(desc.as_str());
-                }
-            } else if *pid == inner::ATA_PROGRAM
-                || *pid == inner::COMPUTE_BUDGET_PROGRAM
-                || *pid == inner::MEMO_PROGRAM
-                || *pid == inner::BPF_LOADER_UPGRADEABLE
-                || *pid == inner::JUPITER_V6_PROGRAM
-                || *pid == inner::MARINADE_PROGRAM
-                || *pid == inner::JITO_STAKE_POOL
-            {
-                let _ = ix_details[i].try_push_str(desc.as_str());
-            } else {
-                // Unknown instruction — use program registry for a clean label
-                use crate::parser::inner::programs;
-                let (name, category) = programs::lookup_program(pid)
-                    .unwrap_or(("Unknown", programs::ProgramCategory::Unknown));
-
-                match category {
-                    programs::ProgramCategory::Swap => {
-                        let _ = write!(&mut ix_details[i], "{} (swap details on computer)", name);
-                    }
-                    programs::ProgramCategory::Lending => {
-                        let _ = write!(&mut ix_details[i], "{} (details on computer)", name);
-                    }
-                    programs::ProgramCategory::Staking => {
-                        let _ = write!(&mut ix_details[i], "{} (details on computer)", name);
-                    }
-                    programs::ProgramCategory::Unknown => {
-                        // Truly unknown — show shortened program ID
-                        let mut pid_buf = [0u8; 45];
-                        if let Ok(len) = format_base58(pid, &mut pid_buf) {
-                            let pid_str = core::str::from_utf8(&pid_buf[..len]).unwrap_or("???");
-                            // Show first 8 + last 4 chars
-                            if pid_str.len() > 12 {
-                                let _ = write!(
-                                    &mut ix_details[i],
-                                    "{}...{}",
-                                    &pid_str[..8],
-                                    &pid_str[pid_str.len() - 4..]
-                                );
-                            } else {
-                                let _ = ix_details[i].try_push_str(pid_str);
-                            }
-                        } else {
-                            let _ = ix_details[i].try_push_str("Unknown");
-                        }
-                    }
-                    _ => {
-                        let _ = ix_details[i].try_push_str(name);
                     }
                 }
             }
         } else {
-            let _ = ix_details[i].try_push_str("Invalid program");
+            // No program ID — label already says the instruction type
         }
     }
 
@@ -289,13 +199,23 @@ pub fn review_vault_tx(
         field_count += 1;
     }
 
-    // Per-instruction fields
+    // Per-instruction fields (up to 3 fields each: type, amount, destination)
     for i in 0..display_count {
+        // Field 1: instruction type label
         fields[field_count] = Field {
             name: ix_labels[i].as_str(),
-            value: ix_details[i].as_str(),
+            value: if ix_has_amount[i] { ix_amounts[i].as_str() } else { "" },
         };
         field_count += 1;
+
+        // Field 2: destination (if we have one)
+        if ix_has_dest[i] {
+            fields[field_count] = Field {
+                name: "To",
+                value: ix_dests[i].as_str(),
+            };
+            field_count += 1;
+        }
     }
 
     // If there are more instructions than we display
