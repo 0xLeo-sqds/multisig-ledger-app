@@ -2,6 +2,7 @@
 //! Phase 2 will add full decoding with amount/address extraction.
 //! Currently provides instruction name identification only.
 
+pub mod programs;
 pub mod spl_token;
 pub mod system;
 
@@ -111,14 +112,10 @@ pub fn describe_inner_instruction_from_vault(
     } else if *program_id == TOKEN_2022_PROGRAM {
         // Token-2022 shares instruction layout with SPL Token
         let _ = desc.try_push_str(spl_token::describe(ix_data));
-    } else if *program_id == JUPITER_V6_PROGRAM {
-        let _ = desc.try_push_str("Jupiter Swap");
-    } else if *program_id == MARINADE_PROGRAM {
-        let _ = desc.try_push_str("Marinade Stake");
-    } else if *program_id == JITO_STAKE_POOL {
-        let _ = desc.try_push_str("Jito Stake");
     } else {
-        let _ = desc.try_push_str("Unknown Program");
+        // Check program registry for a clean label
+        let label = programs::program_label(program_id);
+        let _ = desc.try_push_str(label);
     }
     desc
 }
@@ -168,14 +165,10 @@ pub fn describe_inner_instruction(msg: &ParsedMessage<'_>, ix: &InstructionMeta)
         let _ = desc.try_push_str("Memo");
     } else if *program_id == BPF_LOADER_UPGRADEABLE {
         let _ = desc.try_push_str(describe_bpf_loader(ix_data));
-    } else if *program_id == JUPITER_V6_PROGRAM {
-        let _ = desc.try_push_str("Jupiter Swap");
-    } else if *program_id == MARINADE_PROGRAM {
-        let _ = desc.try_push_str("Marinade Stake");
-    } else if *program_id == JITO_STAKE_POOL {
-        let _ = desc.try_push_str("Jito Stake");
     } else {
-        let _ = desc.try_push_str("Unknown Program");
+        // Check program registry for a clean label
+        let label = programs::program_label(program_id);
+        let _ = desc.try_push_str(label);
     }
 
     desc

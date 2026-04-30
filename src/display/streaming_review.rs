@@ -197,13 +197,44 @@ pub fn review_vault_tx(
             {
                 let _ = ix_details[i].try_push_str(desc.as_str());
             } else {
-                // Unknown program — show program ID
-                let mut pid_buf = [0u8; 45];
-                if let Ok(len) = format_base58(pid, &mut pid_buf) {
-                    let pid_str = core::str::from_utf8(&pid_buf[..len]).unwrap_or("???");
-                    let _ = write!(&mut ix_details[i], "Program: {}", pid_str);
-                } else {
-                    let _ = ix_details[i].try_push_str("Unknown Program");
+                // Unknown instruction — use program registry for a clean label
+                use crate::parser::inner::programs;
+                let (name, category) = programs::lookup_program(pid)
+                    .unwrap_or(("Unknown", programs::ProgramCategory::Unknown));
+
+                match category {
+                    programs::ProgramCategory::Swap => {
+                        let _ = write!(&mut ix_details[i], "{} (swap details on computer)", name);
+                    }
+                    programs::ProgramCategory::Lending => {
+                        let _ = write!(&mut ix_details[i], "{} (details on computer)", name);
+                    }
+                    programs::ProgramCategory::Staking => {
+                        let _ = write!(&mut ix_details[i], "{} (details on computer)", name);
+                    }
+                    programs::ProgramCategory::Unknown => {
+                        // Truly unknown — show shortened program ID
+                        let mut pid_buf = [0u8; 45];
+                        if let Ok(len) = format_base58(pid, &mut pid_buf) {
+                            let pid_str = core::str::from_utf8(&pid_buf[..len]).unwrap_or("???");
+                            // Show first 8 + last 4 chars
+                            if pid_str.len() > 12 {
+                                let _ = write!(
+                                    &mut ix_details[i],
+                                    "{}...{}",
+                                    &pid_str[..8],
+                                    &pid_str[pid_str.len() - 4..]
+                                );
+                            } else {
+                                let _ = ix_details[i].try_push_str(pid_str);
+                            }
+                        } else {
+                            let _ = ix_details[i].try_push_str("Unknown");
+                        }
+                    }
+                    _ => {
+                        let _ = ix_details[i].try_push_str(name);
+                    }
                 }
             }
         } else {
