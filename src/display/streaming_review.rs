@@ -97,7 +97,7 @@ pub fn review_vault_tx(
     let mut ix_labels: [ArrayString<32>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
     let mut ix_amounts: [ArrayString<32>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
     let mut ix_dests: [ArrayString<48>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
-    // Track which fields are populated per instruction
+    let mut ix_descs: [ArrayString<20>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
     let mut ix_has_amount: [bool; MAX_DISPLAY_IX] = [false; MAX_DISPLAY_IX];
     let mut ix_has_dest: [bool; MAX_DISPLAY_IX] = [false; MAX_DISPLAY_IX];
 
@@ -106,22 +106,23 @@ pub fn review_vault_tx(
         let ix_data_slice = msg.instruction_data(ix_data, inner_ix);
         let program_id = msg.program_id(ix_data, inner_ix);
 
-        // Build label: "IX 1/3: SOL Transfer"
+        // Store instruction type description
         let desc = inner::describe_inner_instruction_from_vault(ix_data, msg, inner_ix);
+        let _ = ix_descs[i].try_push_str(desc.as_str());
         let _ = write!(
             &mut ix_labels[i],
-            "IX {}/{}: {}",
+            "IX {}/{}",
             i + 1,
-            msg.num_instructions,
-            desc.as_str()
+            msg.num_instructions
         );
 
         // Extract amount and destination into separate buffers
+        // Amount field shows: "SOL Transfer: 50 SOL" or "Token Transfer: 1000" or just the type name
         if let Some(pid) = program_id {
             if *pid == inner::SYSTEM_PROGRAM {
                 if let Some(lamports) = system::extract_transfer_amount(ix_data_slice) {
                     let sol = format_sol(lamports);
-                    let _ = ix_amounts[i].try_push_str(sol.as_str());
+                    let _ = write!(&mut ix_amounts[i], "SOL Transfer: {}", sol.as_str());
                     ix_has_amount[i] = true;
                     // Destination is account index 1
                     if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 1) {
@@ -136,7 +137,7 @@ pub fn review_vault_tx(
             } else if *pid == inner::SPL_TOKEN_PROGRAM || *pid == inner::TOKEN_2022_PROGRAM {
                 if let Some((amount, decimals)) = spl_token::extract_transfer_checked(ix_data_slice) {
                     let formatted = crate::display::amount::format_amount(amount, decimals);
-                    let _ = ix_amounts[i].try_push_str(formatted.as_str());
+                    let _ = write!(&mut ix_amounts[i], "Token: {}", formatted.as_str());
                     ix_has_amount[i] = true;
                     if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 2) {
                         let mut dest_buf = [0u8; 45];
@@ -147,7 +148,7 @@ pub fn review_vault_tx(
                         }
                     }
                 } else if let Some(raw_amount) = spl_token::extract_transfer_amount(ix_data_slice) {
-                    let _ = write!(&mut ix_amounts[i], "{} tokens", raw_amount);
+                    let _ = write!(&mut ix_amounts[i], "Token: {} raw", raw_amount);
                     ix_has_amount[i] = true;
                     if let Some(dest) = msg.instruction_account(ix_data, inner_ix, 1) {
                         let mut dest_buf = [0u8; 45];
@@ -201,10 +202,10 @@ pub fn review_vault_tx(
 
     // Per-instruction fields (up to 3 fields each: type, amount, destination)
     for i in 0..display_count {
-        // Field 1: instruction type label
+        // Field 1: "IX N/M" with type+amount or just type as value
         fields[field_count] = Field {
             name: ix_labels[i].as_str(),
-            value: if ix_has_amount[i] { ix_amounts[i].as_str() } else { "" },
+            value: if ix_has_amount[i] { ix_amounts[i].as_str() } else { ix_descs[i].as_str() },
         };
         field_count += 1;
 
