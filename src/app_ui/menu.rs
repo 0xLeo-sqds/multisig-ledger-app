@@ -4,13 +4,15 @@ use ledger_device_sdk::io::Comm;
 use ledger_device_sdk::nbgl::{NbglGlyph, NbglHomeAndSettings};
 
 pub fn ui_menu_main(_: &mut Comm) -> NbglHomeAndSettings {
-    // TODO: Replace placeholder icons with actual Squads branding
     #[cfg(target_os = "apex_p")]
     const APP_ICON: NbglGlyph =
-        NbglGlyph::from_include(include_gif!("glyphs/crab_48x48.png", NBGL));
-    #[cfg(any(target_os = "stax", target_os = "flex"))]
+        NbglGlyph::from_include(include_gif!("icons/squads_32x32.png", NBGL));
+    #[cfg(target_os = "stax")]
     const APP_ICON: NbglGlyph =
-        NbglGlyph::from_include(include_gif!("glyphs/crab_64x64.gif", NBGL));
+        NbglGlyph::from_include(include_gif!("icons/squads_32x32.gif", NBGL));
+    #[cfg(target_os = "flex")]
+    const APP_ICON: NbglGlyph =
+        NbglGlyph::from_include(include_gif!("icons/squads_40x40.gif", NBGL));
     #[cfg(any(target_os = "nanosplus", target_os = "nanox"))]
     const APP_ICON: NbglGlyph =
         NbglGlyph::from_include(include_gif!("icons/squads_14x14.gif", NBGL));
