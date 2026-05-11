@@ -1,8 +1,8 @@
 //! Streaming review display for vault transactions with inner instructions.
 //!
-//! Design: Option C (Hybrid) — compact "IX N/M: Type" + "Amount → Dest" per instruction.
-//! Each known instruction takes 2 screens, unknown takes 2 screens.
-//! Total for a typical 2-instruction vault tx: Header(3) + IX1(2) + IX2(2) + Footer(1) = 8 screens.
+//! Compact review for vault transactions.
+//! Fully decoded instructions show amount and destination when available.
+//! Known but not decoded programs are labeled and marked as assisted review.
 
 use crate::display::address::format_base58;
 use crate::display::amount::format_sol;
@@ -21,20 +21,6 @@ use ledger_device_sdk::nbgl::{Field, NbglReview, TransactionType};
 const MAX_REVIEW_FIELDS: usize = 24;
 
 /// Review a vault_transaction_create with per-instruction display.
-///
-/// Screen flow (Option C — Hybrid):
-/// ```text
-/// Screen 1:  "Squads: Create Transaction"
-/// Screen 2:  Multisig: <base58>
-/// Screen 3:  Vault: #N | M instructions
-/// Screen 4:  "IX 1/M: SOL Transfer"
-/// Screen 5:  "50 SOL → 8mD4H...xyz"
-/// Screen 6:  "IX 2/M: USDC Transfer"
-/// Screen 7:  "1,000 USDC → 9kR2J...def"
-/// Screen 8:  "IX 3/M: Unknown ⚠"
-/// Screen 9:  "Program: DezXA...ghi"
-/// Screen 10: [Sign / Reject]
-/// ```
 pub fn review_vault_tx(
     comm: &mut Comm,
     multisig: Option<&[u8; 32]>,
@@ -43,23 +29,15 @@ pub fn review_vault_tx(
     let vault_meta = crate::parser::vault_tx::parse_vault_tx_create(ix_data)?;
     let msg = &vault_meta.inner_message;
 
-    // Check for unknown inner instructions
     let mut has_unknown = false;
+    let mut has_assisted_review = false;
     for i in 0..msg.num_instructions {
         let inner_ix = &msg.instructions[i];
         if let Some(pid) = msg.program_id(ix_data, inner_ix) {
-            if *pid != inner::SYSTEM_PROGRAM
-                && *pid != inner::SPL_TOKEN_PROGRAM
-                && *pid != inner::TOKEN_2022_PROGRAM
-                && *pid != inner::ATA_PROGRAM
-                && *pid != inner::COMPUTE_BUDGET_PROGRAM
-                && *pid != inner::MEMO_PROGRAM
-                && *pid != inner::BPF_LOADER_UPGRADEABLE
-                && *pid != inner::JUPITER_V6_PROGRAM
-                && *pid != inner::MARINADE_PROGRAM
-                && *pid != inner::JITO_STAKE_POOL
-            {
+            if !inner::is_known_program_for_review(pid) {
                 has_unknown = true;
+            } else if !inner::is_fully_decoded_program_for_review(pid) {
+                has_assisted_review = true;
             }
         } else {
             has_unknown = true;
@@ -74,7 +52,8 @@ pub fn review_vault_tx(
     // We use scratch buffers that live on the stack for the duration of the review.
     let mut multisig_buf = [0u8; 45];
     let multisig_str = if let Some(key) = multisig {
-        let len = format_base58(key, &mut multisig_buf).map_err(|_| ParseError::InvalidStructure)?;
+        let len =
+            format_base58(key, &mut multisig_buf).map_err(|_| ParseError::InvalidStructure)?;
         core::str::from_utf8(&multisig_buf[..len]).unwrap_or("???")
     } else {
         "Unknown"
@@ -94,10 +73,14 @@ pub fn review_vault_tx(
     let display_count = msg.num_instructions.min(MAX_DISPLAY_IX);
 
     // Buffers that must outlive the Field references
-    let mut ix_labels: [ArrayString<32>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
-    let mut ix_amounts: [ArrayString<32>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
-    let mut ix_dests: [ArrayString<48>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
-    let mut ix_descs: [ArrayString<20>; MAX_DISPLAY_IX] = core::array::from_fn(|_| ArrayString::new());
+    let mut ix_labels: [ArrayString<32>; MAX_DISPLAY_IX] =
+        core::array::from_fn(|_| ArrayString::new());
+    let mut ix_amounts: [ArrayString<32>; MAX_DISPLAY_IX] =
+        core::array::from_fn(|_| ArrayString::new());
+    let mut ix_dests: [ArrayString<48>; MAX_DISPLAY_IX] =
+        core::array::from_fn(|_| ArrayString::new());
+    let mut ix_descs: [ArrayString<20>; MAX_DISPLAY_IX] =
+        core::array::from_fn(|_| ArrayString::new());
     let mut ix_has_amount: [bool; MAX_DISPLAY_IX] = [false; MAX_DISPLAY_IX];
     let mut ix_has_dest: [bool; MAX_DISPLAY_IX] = [false; MAX_DISPLAY_IX];
 
@@ -109,12 +92,7 @@ pub fn review_vault_tx(
         // Store instruction type description
         let desc = inner::describe_inner_instruction_from_vault(ix_data, msg, inner_ix);
         let _ = ix_descs[i].try_push_str(desc.as_str());
-        let _ = write!(
-            &mut ix_labels[i],
-            "IX {}/{}",
-            i + 1,
-            msg.num_instructions
-        );
+        let _ = write!(&mut ix_labels[i], "IX {}/{}", i + 1, msg.num_instructions);
 
         // Extract amount and destination into separate buffers
         // Amount field shows: "SOL Transfer: 50 SOL" or "Token Transfer: 1000" or just the type name
@@ -135,7 +113,8 @@ pub fn review_vault_tx(
                     }
                 }
             } else if *pid == inner::SPL_TOKEN_PROGRAM || *pid == inner::TOKEN_2022_PROGRAM {
-                if let Some((amount, decimals)) = spl_token::extract_transfer_checked(ix_data_slice) {
+                if let Some((amount, decimals)) = spl_token::extract_transfer_checked(ix_data_slice)
+                {
                     let formatted = crate::display::amount::format_amount(amount, decimals);
                     let _ = write!(&mut ix_amounts[i], "Token: {}", formatted.as_str());
                     ix_has_amount[i] = true;
@@ -172,10 +151,21 @@ pub fn review_vault_tx(
     });
     let mut field_count = 0;
 
-    // Header
     fields[field_count] = Field {
         name: "Action",
         value: "Create Vault Transaction",
+    };
+    field_count += 1;
+
+    fields[field_count] = Field {
+        name: "Review",
+        value: if has_unknown {
+            "Blind signing"
+        } else if has_assisted_review {
+            "Assisted review"
+        } else {
+            "Clear signing"
+        },
     };
     field_count += 1;
 
@@ -191,11 +181,16 @@ pub fn review_vault_tx(
     };
     field_count += 1;
 
-    // Warning if blind signing needed
     if has_unknown {
         fields[field_count] = Field {
-            name: "⚠ Warning",
-            value: "Contains unrecognized instructions",
+            name: "Warning",
+            value: "Unrecognized instructions",
+        };
+        field_count += 1;
+    } else if has_assisted_review {
+        fields[field_count] = Field {
+            name: "Verify",
+            value: "Confirm full details in Squads",
         };
         field_count += 1;
     }
@@ -205,7 +200,11 @@ pub fn review_vault_tx(
         // Field 1: "IX N/M" with type+amount or just type as value
         fields[field_count] = Field {
             name: ix_labels[i].as_str(),
-            value: if ix_has_amount[i] { ix_amounts[i].as_str() } else { ix_descs[i].as_str() },
+            value: if ix_has_amount[i] {
+                ix_amounts[i].as_str()
+            } else {
+                ix_descs[i].as_str()
+            },
         };
         field_count += 1;
 
@@ -236,9 +235,9 @@ pub fn review_vault_tx(
 
     // Show the review
     let title = if has_unknown {
-        "Review\n⚠ Blind Signing"
+        "Review\nBlind Signing"
     } else {
-        "Review\nSquads Transaction"
+        "Review\nSquads Vault"
     };
 
     let approved = NbglReview::new()

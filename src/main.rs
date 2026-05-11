@@ -179,7 +179,7 @@ fn handle_apdu<'a>(
             let mut response = command.into_response();
             response.append(&[blind])?; // blind signing enabled
             response.append(&[0])?; // reserved
-            // version
+                                    // version
             let (major, minor, patch) =
                 handlers::get_version::parse_version_string(env!("CARGO_PKG_VERSION"))
                     .unwrap_or((0, 0, 0));
@@ -187,8 +187,6 @@ fn handle_apdu<'a>(
             Ok(response)
         }
         Instruction::GetPubkey { display } => handler_get_public_key(command, *display),
-        Instruction::SignTx { is_first, more } => {
-            handler_sign_tx(command, *is_first, *more, ctx)
-        }
+        Instruction::SignTx { is_first, more } => handler_sign_tx(command, *is_first, *more, ctx),
     }
 }

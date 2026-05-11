@@ -29,10 +29,12 @@ pub enum ProgramCategory {
     /// Other / memo / utility
     Utility,
     /// Completely unknown
+    #[allow(dead_code)]
     Unknown,
 }
 
 impl ProgramCategory {
+    #[allow(dead_code)]
     pub fn label(self) -> &'static str {
         match self {
             Self::System => "System",
@@ -70,10 +72,13 @@ pub fn lookup_program(id: &[u8; 32]) -> Option<(&'static str, ProgramCategory)> 
 
 /// Get just the name for a program ID, or a short base58 prefix for unknown.
 pub fn program_label(id: &[u8; 32]) -> &'static str {
-    lookup_program(id).map(|(name, _)| name).unwrap_or("Unknown")
+    lookup_program(id)
+        .map(|(name, _)| name)
+        .unwrap_or("Unknown")
 }
 
 /// Get the category for display grouping.
+#[allow(dead_code)]
 pub fn program_category(id: &[u8; 32]) -> ProgramCategory {
     lookup_program(id)
         .map(|(_, cat)| cat)

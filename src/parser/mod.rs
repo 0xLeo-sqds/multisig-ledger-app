@@ -15,7 +15,11 @@ pub struct Reader<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParseError {
     /// Reached end of buffer unexpectedly.
-    Eof { offset: usize, need: usize, have: usize },
+    Eof {
+        offset: usize,
+        need: usize,
+        have: usize,
+    },
     /// Discriminator did not match expected value.
     InvalidDiscriminator,
     /// A structural invariant was violated (e.g., index out of bounds).
@@ -23,6 +27,7 @@ pub enum ParseError {
     /// Boolean tag was neither 0 nor 1.
     InvalidTag { tag: u8 },
     /// Nesting too deep for stack safety.
+    #[allow(dead_code)]
     NestingTooDeep,
     /// Versioned message not supported.
     VersionedMessageNotSupported,
@@ -94,6 +99,7 @@ impl<'a> Reader<'a> {
         Ok(bytes.try_into().map_err(|_| ParseError::InvalidStructure)?)
     }
 
+    #[allow(dead_code)]
     pub fn read_discriminator(&mut self, expected: &[u8; 8]) -> Result<(), ParseError> {
         let bytes = self.read_bytes(8)?;
         if bytes != expected {

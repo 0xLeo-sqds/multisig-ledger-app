@@ -1,7 +1,6 @@
 use crate::crypto::{sign_message, Bip32Path};
 use crate::parser::solana_message;
 use crate::parser::squads;
-use crate::settings::Settings;
 use crate::AppSW;
 use ledger_device_sdk::io::{Command, CommandResponse};
 use ledger_device_sdk::nbgl::NbglHomeAndSettings;

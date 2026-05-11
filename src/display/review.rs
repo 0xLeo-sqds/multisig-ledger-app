@@ -11,7 +11,8 @@ pub fn review_proposal_vote(
 ) -> Result<bool, ParseError> {
     let mut multisig_str = [0u8; 45];
     let multisig_display = if let Some(key) = multisig {
-        let len = format_base58(key, &mut multisig_str).map_err(|_| ParseError::InvalidStructure)?;
+        let len =
+            format_base58(key, &mut multisig_str).map_err(|_| ParseError::InvalidStructure)?;
         core::str::from_utf8(&multisig_str[..len]).unwrap_or("???")
     } else {
         "Unknown"
@@ -38,6 +39,7 @@ pub fn review_proposal_vote(
 }
 
 /// Review a vault transaction create (placeholder — Phase 2 will add inner instruction decoding).
+#[allow(dead_code)]
 pub fn review_vault_tx_create(
     comm: &mut Comm,
     multisig: Option<&[u8; 32]>,
@@ -48,6 +50,7 @@ pub fn review_vault_tx_create(
 }
 
 /// Review a config transaction create (placeholder — Phase 3 will add ConfigAction decoding).
+#[allow(dead_code)]
 pub fn review_config_tx_create(
     comm: &mut Comm,
     multisig: Option<&[u8; 32]>,
@@ -67,11 +70,11 @@ pub fn review_spending_limit_use(
 ) -> Result<bool, ParseError> {
     use crate::display::amount::format_amount;
     use arrayvec::ArrayString;
-    use core::fmt::Write;
 
     let mut multisig_buf = [0u8; 45];
     let multisig_display = if let Some(key) = multisig {
-        let len = format_base58(key, &mut multisig_buf).map_err(|_| ParseError::InvalidStructure)?;
+        let len =
+            format_base58(key, &mut multisig_buf).map_err(|_| ParseError::InvalidStructure)?;
         core::str::from_utf8(&multisig_buf[..len]).unwrap_or("???")
     } else {
         "Unknown"
@@ -102,7 +105,7 @@ pub fn review_spending_limit_use(
 
     let fields = [
         Field {
-            name: "⚠ Action",
+            name: "Action",
             value: "Spending Limit Transfer",
         },
         Field {

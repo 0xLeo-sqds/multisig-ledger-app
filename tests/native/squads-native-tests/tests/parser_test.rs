@@ -17,6 +17,7 @@ struct Reader<'a> {
 enum ParseError {
     Eof,
     InvalidStructure,
+    #[allow(dead_code)]
     InvalidDiscriminator,
     VersionedNotSupported,
 }
@@ -76,6 +77,7 @@ impl<'a> Reader<'a> {
 const MAX_INSTRUCTIONS: usize = 32;
 
 #[derive(Clone, Copy, Default, Debug)]
+#[allow(dead_code)]
 struct InstructionMeta {
     program_id_index: u8,
     accounts_offset: usize,
@@ -85,6 +87,7 @@ struct InstructionMeta {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ParsedMessage<'a> {
     raw: &'a [u8],
     num_required_sigs: u8,
@@ -262,7 +265,7 @@ fn test_reader_compact_u16_single_byte() {
 
 #[test]
 fn test_reader_compact_u16_two_bytes() {
-    // 200 = 0xC8 → first byte = (200 & 0x7f) | 0x80 = 0xC8, second = 200 >> 7 = 1
+    // 200 = 0xC8: first byte = (200 & 0x7f) | 0x80, second = 200 >> 7.
     let mut r = Reader::new(&[0xC8, 0x01]);
     assert_eq!(r.read_compact_u16().unwrap(), 200);
 }
@@ -396,7 +399,6 @@ fn test_vault_tx_create_parsing() {
     ix_data.push(0); // reserved
 
     // Inner TransactionMessage (Borsh: u32 lengths)
-    let inner_msg_start = ix_data.len() + 4; // after message_len
     let mut inner_msg = Vec::new();
     inner_msg.push(1); // num_signers
     inner_msg.push(1); // num_writable_signers
@@ -512,7 +514,6 @@ fn test_sanitize_ascii() {
 fn test_base58_encode() {
     // System program (all zeros) = "11111111111111111111111111111111"
     let pubkey = [0u8; 32];
-    let mut out = [0u8; 45];
     let len = bs58::encode(&pubkey).into_string();
     let addr = &len;
     assert_eq!(addr, "11111111111111111111111111111111");
@@ -520,7 +521,6 @@ fn test_base58_encode() {
 
 #[test]
 fn test_base58_squads_program_id() {
-    let mut out = [0u8; 45];
     let len = bs58::encode(&SQUADS_V4_PROGRAM_ID).into_string();
     let addr = &len;
     assert_eq!(addr, "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf");

@@ -22,7 +22,7 @@ pub fn handler_get_public_key(
             core::str::from_utf8(&addr_buf[..addr_len]).map_err(|_| AppSW::AddrDisplayFail)?;
 
         let confirmed = NbglAddressReview::new()
-            .verify_str("Verify Solana\naddress")
+            .review_title("Verify Solana\naddress")
             .show(comm, addr_str);
 
         if !confirmed {

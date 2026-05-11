@@ -41,6 +41,7 @@ pub fn extract_transfer_amount(data: &[u8]) -> Option<u64> {
 }
 
 /// Extract the lamports from a CreateAccount instruction (type 0).
+#[allow(dead_code)]
 pub fn extract_create_account_lamports(data: &[u8]) -> Option<u64> {
     if data.len() < 12 {
         return None;

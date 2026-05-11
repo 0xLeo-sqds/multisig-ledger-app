@@ -1,7 +1,7 @@
 //! Display screens for config_transaction_create with ConfigAction variants.
 
 use crate::display::address::format_base58;
-use crate::parser::config_tx::{ConfigActionParsed, ConfigTxMeta, SpendingLimitPeriod};
+use crate::parser::config_tx::ConfigActionParsed;
 use crate::parser::ParseError;
 use arrayvec::ArrayString;
 use core::fmt::Write;
@@ -19,7 +19,8 @@ pub fn review_config_tx(
     // Format multisig address
     let mut multisig_buf = [0u8; 45];
     let multisig_str = if let Some(key) = multisig {
-        let len = format_base58(key, &mut multisig_buf).map_err(|_| ParseError::InvalidStructure)?;
+        let len =
+            format_base58(key, &mut multisig_buf).map_err(|_| ParseError::InvalidStructure)?;
         core::str::from_utf8(&multisig_buf[..len]).unwrap_or("???")
     } else {
         "Unknown"
@@ -49,8 +50,7 @@ fn review_config_action(
             let mut member_buf = [0u8; 45];
             let member_len =
                 format_base58(member, &mut member_buf).map_err(|_| ParseError::InvalidStructure)?;
-            let member_str =
-                core::str::from_utf8(&member_buf[..member_len]).unwrap_or("???");
+            let member_str = core::str::from_utf8(&member_buf[..member_len]).unwrap_or("???");
 
             let mut perm_str = ArrayString::<32>::new();
             if permissions & 1 != 0 {
@@ -73,10 +73,22 @@ fn review_config_action(
             }
 
             let fields = [
-                Field { name: "Action", value: "Add Member" },
-                Field { name: "Multisig", value: multisig_str },
-                Field { name: "Member", value: member_str },
-                Field { name: "Permissions", value: perm_str.as_str() },
+                Field {
+                    name: "Action",
+                    value: "Add Member",
+                },
+                Field {
+                    name: "Multisig",
+                    value: multisig_str,
+                },
+                Field {
+                    name: "Member",
+                    value: member_str,
+                },
+                Field {
+                    name: "Permissions",
+                    value: perm_str.as_str(),
+                },
             ];
             let approved = NbglReview::new()
                 .titles("Review\nConfig Change", "", "Sign transaction?")
@@ -88,13 +100,21 @@ fn review_config_action(
             let mut member_buf = [0u8; 45];
             let member_len =
                 format_base58(member, &mut member_buf).map_err(|_| ParseError::InvalidStructure)?;
-            let member_str =
-                core::str::from_utf8(&member_buf[..member_len]).unwrap_or("???");
+            let member_str = core::str::from_utf8(&member_buf[..member_len]).unwrap_or("???");
 
             let fields = [
-                Field { name: "Action", value: "Remove Member" },
-                Field { name: "Multisig", value: multisig_str },
-                Field { name: "Member", value: member_str },
+                Field {
+                    name: "Action",
+                    value: "Remove Member",
+                },
+                Field {
+                    name: "Multisig",
+                    value: multisig_str,
+                },
+                Field {
+                    name: "Member",
+                    value: member_str,
+                },
             ];
             let approved = NbglReview::new()
                 .titles("Review\nConfig Change", "", "Sign transaction?")
@@ -107,9 +127,18 @@ fn review_config_action(
             let _ = write!(&mut thresh_buf, "{}", new_threshold);
 
             let fields = [
-                Field { name: "Action", value: "Change Threshold" },
-                Field { name: "Multisig", value: multisig_str },
-                Field { name: "New Threshold", value: thresh_buf.as_str() },
+                Field {
+                    name: "Action",
+                    value: "Change Threshold",
+                },
+                Field {
+                    name: "Multisig",
+                    value: multisig_str,
+                },
+                Field {
+                    name: "New Threshold",
+                    value: thresh_buf.as_str(),
+                },
             ];
             let approved = NbglReview::new()
                 .titles("Review\nConfig Change", "", "Sign transaction?")
@@ -122,9 +151,18 @@ fn review_config_action(
             let _ = write!(&mut lock_buf, "{}s", new_time_lock);
 
             let fields = [
-                Field { name: "Action", value: "Set Time Lock" },
-                Field { name: "Multisig", value: multisig_str },
-                Field { name: "Duration", value: lock_buf.as_str() },
+                Field {
+                    name: "Action",
+                    value: "Set Time Lock",
+                },
+                Field {
+                    name: "Multisig",
+                    value: multisig_str,
+                },
+                Field {
+                    name: "Duration",
+                    value: lock_buf.as_str(),
+                },
             ];
             let approved = NbglReview::new()
                 .titles("Review\nConfig Change", "", "Sign transaction?")
@@ -133,7 +171,7 @@ fn review_config_action(
             Ok(approved)
         }
         ConfigActionParsed::AddSpendingLimit {
-            vault_index: _,
+            vault_index,
             mint,
             amount,
             period,
@@ -148,6 +186,9 @@ fn review_config_action(
             let mut amount_buf = ArrayString::<32>::new();
             let _ = write!(&mut amount_buf, "{}", amount);
 
+            let mut vault_buf = ArrayString::<8>::new();
+            let _ = write!(&mut vault_buf, "{}", vault_index);
+
             let mut details_buf = ArrayString::<64>::new();
             let _ = write!(
                 &mut details_buf,
@@ -158,10 +199,30 @@ fn review_config_action(
             );
 
             let fields = [
-                Field { name: "Action", value: "Add Spending Limit" },
-                Field { name: "Multisig", value: multisig_str },
-                Field { name: "Amount", value: amount_buf.as_str() },
-                Field { name: "Token Mint", value: mint_str },
+                Field {
+                    name: "Action",
+                    value: "Add Spending Limit",
+                },
+                Field {
+                    name: "Multisig",
+                    value: multisig_str,
+                },
+                Field {
+                    name: "Vault Index",
+                    value: vault_buf.as_str(),
+                },
+                Field {
+                    name: "Amount",
+                    value: amount_buf.as_str(),
+                },
+                Field {
+                    name: "Limit Details",
+                    value: details_buf.as_str(),
+                },
+                Field {
+                    name: "Token Mint",
+                    value: mint_str,
+                },
             ];
             let approved = NbglReview::new()
                 .titles("Review\nConfig Change", "", "Sign transaction?")
@@ -173,13 +234,21 @@ fn review_config_action(
             let mut limit_buf = [0u8; 45];
             let limit_len = format_base58(spending_limit, &mut limit_buf)
                 .map_err(|_| ParseError::InvalidStructure)?;
-            let limit_str =
-                core::str::from_utf8(&limit_buf[..limit_len]).unwrap_or("???");
+            let limit_str = core::str::from_utf8(&limit_buf[..limit_len]).unwrap_or("???");
 
             let fields = [
-                Field { name: "Action", value: "Remove Spending Limit" },
-                Field { name: "Multisig", value: multisig_str },
-                Field { name: "Spending Limit", value: limit_str },
+                Field {
+                    name: "Action",
+                    value: "Remove Spending Limit",
+                },
+                Field {
+                    name: "Multisig",
+                    value: multisig_str,
+                },
+                Field {
+                    name: "Spending Limit",
+                    value: limit_str,
+                },
             ];
             let approved = NbglReview::new()
                 .titles("Review\nConfig Change", "", "Sign transaction?")
@@ -190,16 +259,26 @@ fn review_config_action(
         ConfigActionParsed::SetRentCollector { new_rent_collector } => {
             let mut collector_buf = [0u8; 45];
             let collector_display = if let Some(key) = new_rent_collector {
-                let len = format_base58(key, &mut collector_buf).map_err(|_| ParseError::InvalidStructure)?;
+                let len = format_base58(key, &mut collector_buf)
+                    .map_err(|_| ParseError::InvalidStructure)?;
                 core::str::from_utf8(&collector_buf[..len]).unwrap_or("???")
             } else {
                 "None (disabled)"
             };
 
             let fields = [
-                Field { name: "Action", value: "Set Rent Collector" },
-                Field { name: "Multisig", value: multisig_str },
-                Field { name: "Collector", value: collector_display },
+                Field {
+                    name: "Action",
+                    value: "Set Rent Collector",
+                },
+                Field {
+                    name: "Multisig",
+                    value: multisig_str,
+                },
+                Field {
+                    name: "Collector",
+                    value: collector_display,
+                },
             ];
             let approved = NbglReview::new()
                 .titles("Review\nConfig Change", "", "Sign transaction?")
@@ -212,8 +291,14 @@ fn review_config_action(
             let _ = write!(&mut tag_buf, "Unknown ({})", tag);
 
             let fields = [
-                Field { name: "Action", value: tag_buf.as_str() },
-                Field { name: "Multisig", value: multisig_str },
+                Field {
+                    name: "Action",
+                    value: tag_buf.as_str(),
+                },
+                Field {
+                    name: "Multisig",
+                    value: multisig_str,
+                },
             ];
             let approved = NbglReview::new()
                 .titles("Review\nConfig Change", "", "Sign transaction?")

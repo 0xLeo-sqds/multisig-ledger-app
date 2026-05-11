@@ -1,4 +1,5 @@
 /// Maximum length for sanitized display strings.
+#[allow(dead_code)]
 pub const MAX_DISPLAY_LEN: usize = 64;
 
 /// Sanitize a byte slice for safe display on the Ledger screen.
@@ -9,6 +10,7 @@ pub const MAX_DISPLAY_LEN: usize = 64;
 /// - Returns the number of bytes written to `out`
 ///
 /// Ported from msig-cli sanitize.rs, adapted for no_std (no String/collect).
+#[allow(dead_code)]
 pub fn sanitize_for_display(input: &[u8], out: &mut [u8; MAX_DISPLAY_LEN]) -> usize {
     let mut pos = 0;
     for &b in input {

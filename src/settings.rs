@@ -36,14 +36,13 @@ impl Settings {
         settings[index]
     }
 
+    #[allow(dead_code)]
     pub fn set_element(&self, index: usize, value: u8) {
         let data = &raw mut DATA;
         let storage = unsafe { (*data).get_mut() };
         let mut updated_data = *storage.get_ref();
         updated_data[index] = value;
-        unsafe {
-            storage.update(&updated_data);
-        }
+        storage.update(&updated_data);
     }
 
     pub fn blind_signing_enabled(&self) -> bool {

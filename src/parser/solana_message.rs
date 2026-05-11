@@ -2,12 +2,14 @@ use super::{ParseError, Reader};
 
 /// Maximum number of account keys in a Solana transaction.
 /// Solana's actual limit is 256, but we only need offsets.
+#[allow(dead_code)]
 const MAX_ACCOUNT_KEYS: usize = 64;
 
 /// Maximum number of instructions in a Solana transaction.
 const MAX_INSTRUCTIONS: usize = 32;
 
 /// Parsed Solana legacy message — zero-copy references into the raw buffer.
+#[allow(dead_code)]
 pub struct ParsedMessage<'a> {
     /// Raw message bytes (the entire buffer).
     pub raw: &'a [u8],
@@ -68,7 +70,11 @@ impl<'a> ParsedMessage<'a> {
     }
 
     /// Get an account key referenced by an instruction's account index.
-    pub fn instruction_account(&self, ix: &InstructionMeta, account_idx: usize) -> Option<&'a [u8; 32]> {
+    pub fn instruction_account(
+        &self,
+        ix: &InstructionMeta,
+        account_idx: usize,
+    ) -> Option<&'a [u8; 32]> {
         if account_idx >= ix.num_accounts as usize {
             return None;
         }

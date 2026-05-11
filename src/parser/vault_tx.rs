@@ -22,6 +22,7 @@ pub struct VaultTxMeta {
 }
 
 /// Zero-copy metadata for the inner TransactionMessage.
+#[allow(dead_code)]
 pub struct InnerMessageMeta {
     pub num_signers: u8,
     pub num_writable_signers: u8,

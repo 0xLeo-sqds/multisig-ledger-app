@@ -72,13 +72,8 @@ impl TryFrom<&[u8]> for Bip32Path {
 /// 64-byte output buffer.
 pub fn derive_pubkey(path: &Bip32Path) -> Result<[u8; 32], AppSW> {
     let mut raw_key = [0u8; 64];
-    ledger_device_sdk::ecc::bip32_derive(
-        CurvesId::Ed25519,
-        path.as_slice(),
-        &mut raw_key,
-        None,
-    )
-    .map_err(|_| AppSW::KeyDeriveFail)?;
+    ledger_device_sdk::ecc::bip32_derive(CurvesId::Ed25519, path.as_slice(), &mut raw_key, None)
+        .map_err(|_| AppSW::KeyDeriveFail)?;
 
     let mut pubkey = [0u8; 32];
     pubkey.copy_from_slice(&raw_key[32..64]);
