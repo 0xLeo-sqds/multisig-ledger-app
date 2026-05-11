@@ -19,8 +19,9 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rust-src
+
+      - name: Install Rust source component
+        run: rustup component add rust-src
 
       - name: Run native tests
         working-directory: tests/native
