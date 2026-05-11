@@ -14,4 +14,4 @@ docker run --rm \
     -v "$(pwd):/app" \
     -w /app \
     "$IMAGE" \
-    bash -c "cargo ledger build nanosplus && pytest tests/standalone/ --device $DEVICE -v"
+    bash -c "python3 -m pip install --break-system-packages -q -r tests/standalone/requirements.txt && cargo ledger build nanosplus && pytest tests/standalone/ --device $DEVICE -v"
