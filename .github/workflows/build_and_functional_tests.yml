@@ -30,6 +30,7 @@ jobs:
     name: Build application using the reusable workflow
     uses: LedgerHQ/ledger-app-workflows/.github/workflows/reusable_build.yml@v1.95.7
     with:
+      builder: "ledger-app-dev-tools"
       upload_app_binaries_artifact: "app_squads_binaries"
 
   tests_standalone:
